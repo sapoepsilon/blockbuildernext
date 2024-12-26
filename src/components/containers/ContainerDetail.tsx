@@ -11,13 +11,20 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ArrowLeft, Power, Pause, Play, RefreshCw, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface ContainerDetails {
   id: string;
@@ -41,22 +48,17 @@ interface ContainerDetails {
 
 interface Props {
   containerId: string;
+  onBack: () => void;
 }
 
-export function ContainerDetail({ containerId }: Props) {
+export function ContainerDetail({ containerId, onBack }: Props) {
   const [details, setDetails] = useState<ContainerDetails | null>(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchContainerDetails();
-    const interval = setInterval(fetchContainerDetails, 5000);
-    return () => clearInterval(interval);
-  }, [containerId]);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const fetchContainerDetails = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call
       const response = await fetch(`/api/containers/${containerId}`);
       const data = await response.json();
       setDetails(data);
@@ -67,143 +69,176 @@ export function ContainerDetail({ containerId }: Props) {
     }
   };
 
-  if (!details) {
-    return <div>Loading...</div>;
+  useEffect(() => {
+    fetchContainerDetails();
+  }, [containerId]);
+
+  if (loading || !details) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </Card>
+    );
   }
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'running':
-        return 'success';
+        return 'outline';
       case 'stopped':
         return 'destructive';
+      case 'paused':
+        return 'secondary'; // TODO: I might need to create a custom secondary button
       default:
-        return 'warning';
+        return 'default';
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">{details.name}</h2>
-            <div className="flex items-center gap-2">
-              <Badge variant={getStatusBadgeVariant(details.status)}>
-                {details.status}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {details.id}
-              </span>
-            </div>
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold">{details.name}</h2>
+            <p className="text-sm text-muted-foreground">{details.id}</p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant={details.status === 'running' ? 'outline' : 'default'}
-            >
-              {details.status === 'running' ? 'Stop' : 'Start'}
-            </Button>
-            <Button variant="destructive">Remove</Button>
-          </div>
+          <Badge variant={getStatusBadgeVariant(details.status)}>
+            {details.status}
+          </Badge>
         </div>
+        <div className="flex items-center gap-2">
+          {details.status === 'running' && (
+            <Button variant="outline" size="sm">
+              <Pause className="mr-2 h-4 w-4" /> Pause
+            </Button>
+          )}
+          {details.status === 'paused' && (
+            <Button variant="outline" size="sm">
+              <Play className="mr-2 h-4 w-4" /> Resume
+            </Button>
+          )}
+          {details.status !== 'stopped' && (
+            <Button variant="outline" size="sm">
+              <Power className="mr-2 h-4 w-4" /> Stop
+            </Button>
+          )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the
+                  container and remove all of its data.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive text-destructive-foreground">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
-            <TabsTrigger value="environment">Environment</TabsTrigger>
-          </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
+          <TabsTrigger value="environment">Environment</TabsTrigger>
+          <TabsTrigger value="network">Network</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Image</div>
-                <div className="text-sm">{details.image}</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Created</div>
-                <div className="text-sm">{details.created}</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">IP Address</div>
-                <div className="text-sm">{details.network.ipAddress}</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Network Mode</div>
-                <div className="text-sm">{details.network.networkMode}</div>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="resources" className="space-y-6">
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <Card className="p-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>CPU Usage</span>
-                  <span>{details.resources.cpuUsage}%</span>
+              <h3 className="font-semibold mb-2">Resource Usage</h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>CPU Usage</span>
+                    <span>{details.resources.cpuUsage}%</span>
+                  </div>
+                  <Progress value={details.resources.cpuUsage} />
                 </div>
-                <Progress value={details.resources.cpuUsage} />
-                <div className="text-xs text-muted-foreground">
-                  {details.resources.cpuUsage}% of {details.resources.cpu} cores
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Memory Usage</span>
+                    <span>{details.resources.memoryUsage}%</span>
+                  </div>
+                  <Progress value={details.resources.memoryUsage} />
                 </div>
               </div>
             </Card>
-
             <Card className="p-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Memory Usage</span>
-                  <span>{(details.resources.memoryUsage / details.resources.memory * 100).toFixed(1)}%</span>
+              <h3 className="font-semibold mb-2">Container Info</h3>
+              <dl className="space-y-2">
+                <div>
+                  <dt className="text-sm text-muted-foreground">Image</dt>
+                  <dd>{details.image}</dd>
                 </div>
-                <Progress 
-                  value={(details.resources.memoryUsage / details.resources.memory) * 100}
-                />
-                <div className="text-xs text-muted-foreground">
-                  {details.resources.memoryUsage}MB of {details.resources.memory}MB
+                <div>
+                  <dt className="text-sm text-muted-foreground">Created</dt>
+                  <dd>{details.created}</dd>
                 </div>
-              </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground">Ports</dt>
+                  <dd>{details.ports.join(', ') || 'None'}</dd>
+                </div>
+              </dl>
             </Card>
-          </TabsContent>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="logs">
-            <Card className="p-4">
+        <TabsContent value="logs">
+          <Card className="p-4">
+            <ScrollArea className="h-[400px]">
               <LogViewer containerId={containerId} />
-            </Card>
-          </TabsContent>
+            </ScrollArea>
+          </Card>
+        </TabsContent>
 
-          <TabsContent value="environment">
-            <Card className="p-4">
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-2">
-                  {Object.entries(details.environment).map(([key, value]) => (
-                    <HoverCard key={key}>
-                      <HoverCardTrigger asChild>
-                        <div className="flex justify-between items-center p-2 rounded-lg hover:bg-muted">
-                          <span className="font-mono text-sm">{key}</span>
-                          <span className="text-sm text-muted-foreground truncate max-w-[300px]">
-                            {value}
-                          </span>
-                        </div>
-                      </HoverCardTrigger>
-                      <HoverCardContent>
-                        <div className="space-y-2">
-                          <div className="font-medium">{key}</div>
-                          <div className="text-sm font-mono break-all">
-                            {value}
-                          </div>
-                        </div>
-                      </HoverCardContent>
-                    </HoverCard>
-                  ))}
-                </div>
-              </ScrollArea>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </Card>
-    </div>
+        <TabsContent value="environment">
+          <Card className="p-4">
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-2">
+                {Object.entries(details.environment).map(([key, value]) => (
+                  <div key={key} className="flex items-start gap-4">
+                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">{key}</code>
+                    <code className="text-sm font-mono text-muted-foreground">{value}</code>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="network">
+          <Card className="p-4">
+            <dl className="space-y-4">
+              <div>
+                <dt className="text-sm text-muted-foreground">IP Address</dt>
+                <dd className="font-mono">{details.network.ipAddress}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">Network Mode</dt>
+                <dd>{details.network.networkMode}</dd>
+              </div>
+            </dl>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </Card>
   );
 }
-
-export default ContainerDetail;
