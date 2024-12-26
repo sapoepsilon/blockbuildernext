@@ -40,16 +40,12 @@ import { ContainerService } from '@/lib/services/containerService';
 import { toast } from '@/hooks/use-toast';
 
 interface Container {
-  id: string;
-  name: string;
-  status: 'running' | 'stopped' | 'paused';
-  image: string;
-  created: string;
-  ports: string;
-  resource: {
-    cpu: number;
-    memory: number;
-  };
+  ID: string;
+  Name: string;
+  Status: string;
+  Image: string;
+  CreatedAt: string;
+  Ports?: string;
 }
 
 interface ContainerListProps {
@@ -65,8 +61,11 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
   const fetchContainers = async () => {
     try {
       setLoading(true);
+      console.log('Fetching containers...');
       const response = await ContainerService.listContainers();
+      console.log('Response:', response);
       if (response.error) {
+        console.error('Error response:', response.error);
         toast({
           variant: "destructive",
           title: "Error fetching containers",
@@ -76,6 +75,7 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
       }
       setContainers(response.data || []);
     } catch (error) {
+      console.error('Fetch error:', error);
       toast({
         variant: "destructive",
         title: "Failed to fetch containers",
@@ -125,22 +125,16 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
   }, []);
 
   const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'running':
-        return 'default';
-      case 'stopped':
-        return 'destructive';
-      case 'paused':
-        return 'outline'; // TODO: Is secondary good for paused?
-      default:
-        return 'secondary';
-    }
+    if (status.toLowerCase().includes('up')) return 'default';
+    if (status.toLowerCase().includes('exited')) return 'destructive';
+    if (status.toLowerCase().includes('paused')) return 'outline';
+    return 'secondary';
   };
 
   const filteredContainers = containers.filter(container => {
-    const matchesSearch = container.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      container.image.toLowerCase().includes(searchText.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || container.status === statusFilter;
+    const matchesSearch = (container?.Name?.toLowerCase()?.includes(searchText.toLowerCase()) || false) ||
+      (container?.Image?.toLowerCase()?.includes(searchText.toLowerCase()) || false);
+    const matchesStatus = statusFilter === 'all' || container?.Status?.toLowerCase().includes(statusFilter);
     return matchesSearch && matchesStatus;
   });
 
@@ -206,19 +200,18 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
           </TableHeader>
           <TableBody>
             {filteredContainers.map((container) => (
-              <TableRow key={container.id}>
-                <TableCell className="font-medium">{container.name}</TableCell>
+              <TableRow key={container.ID}>
+                <TableCell className="font-medium">{container.Name}</TableCell>
                 <TableCell>
-                  <Badge variant={getStatusBadgeVariant(container.status)}>
-                    {container.status}
+                  <Badge variant={getStatusBadgeVariant(container.Status)}>
+                    {container.Status}
                   </Badge>
                 </TableCell>
-                <TableCell>{container.image}</TableCell>
-                <TableCell>{container.created}</TableCell>
-                <TableCell>{container.ports}</TableCell>
+                <TableCell>{container.Image}</TableCell>
+                <TableCell>{container.CreatedAt}</TableCell>
+                <TableCell>{container.Ports}</TableCell>
                 <TableCell>
-                  CPU: {container.resource.cpu} cores<br />
-                  Memory: {container.resource.memory} GB
+                  {/* Removed resource information as it's not present in the updated Container interface */}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -230,26 +223,26 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => onSelectContainer(container.id)}>
+                      <DropdownMenuItem onClick={() => onSelectContainer(container.ID)}>
                         View Details
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      {container.status === 'running' && (
+                      {container.Status.toLowerCase().includes('running') && (
                         <DropdownMenuItem>
                           <Pause className="mr-2 h-4 w-4" /> Pause
                         </DropdownMenuItem>
                       )}
-                      {container.status === 'paused' && (
+                      {container.Status.toLowerCase().includes('paused') && (
                         <DropdownMenuItem>
                           <Play className="mr-2 h-4 w-4" /> Resume
                         </DropdownMenuItem>
                       )}
-                      {container.status !== 'stopped' && (
+                      {!container.Status.toLowerCase().includes('stopped') && (
                         <DropdownMenuItem>
                           <Power className="mr-2 h-4 w-4" /> Stop
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleContainerAction(container.id, 'delete')}>
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleContainerAction(container.ID, 'delete')}>
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>

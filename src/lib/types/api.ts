@@ -1,5 +1,9 @@
+import { ReactNode } from "react";
+
 export interface Container {
   resources: {
+    cpuUsage: ReactNode;
+    memoryUsage: ReactNode;
     cpu?: number;
     memory?: number;
   };

@@ -76,12 +76,7 @@ class APIClient {
 
       return { data: data as T };
     } catch (error) {
-      return {
-        error: {
-          error: 'Network error',
-          details: error instanceof Error ? error.message : 'Unknown error',
-        },
-      };
+      throw new Error(error instanceof Error ? error.message : 'Network error occurred');
     }
   }
 
