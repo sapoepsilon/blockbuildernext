@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { LogViewer } from './LogViewer';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,26 +24,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-
-interface ContainerDetails {
-  id: string;
-  name: string;
-  status: string;
-  image: string;
-  created: string;
-  ports: string[];
-  environment: Record<string, string>;
-  resources: {
-    cpu: number;
-    memory: number;
-    memoryUsage: number;
-    cpuUsage: number;
-  };
-  network: {
-    ipAddress: string;
-    networkMode: string;
-  };
-}
+import { ContainerService } from '@/lib/services/containerService';
+import { toast } from '@/hooks/use-toast';
+import { Container } from '@/lib/types/api';
 
 interface Props {
   containerId: string;
@@ -52,32 +34,92 @@ interface Props {
 }
 
 export function ContainerDetail({ containerId, onBack }: Props) {
-  const [details, setDetails] = useState<ContainerDetails | null>(null);
+  const [container, setContainer] = useState<Container | null>(null);
+  const [logs, setLogs] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [logsLoading, setLogsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchContainerDetails = async () => {
+  const fetchContainer = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/containers/${containerId}`);
-      const data = await response.json();
-      setDetails(data);
+      const response = await ContainerService.getContainer(containerId);
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Error fetching container details",
+          description: response.error.error,
+        });
+        return;
+      }
+      setContainer(response.data || null);
     } catch (error) {
-      console.error('Failed to fetch container details:', error);
+      toast({
+        variant: "destructive",
+        title: "Failed to fetch container details",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchLogs = async () => {
+    try {
+      setLogsLoading(true);
+      const response = await ContainerService.getContainerLogs(containerId);
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Error fetching container logs",
+          description: response.error.error,
+        });
+        return;
+      }
+      setLogs(response.data?.logs || '');
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to fetch container logs",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchContainerDetails();
+    fetchContainer();
+    fetchLogs();
+    // Set up polling for logs and container status
+    const intervalId = setInterval(() => {
+      fetchContainer();
+      fetchLogs();
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(intervalId);
   }, [containerId]);
 
-  if (loading || !details) {
+  if (loading) {
     return (
       <Card className="p-6">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="animate-spin">
+            <RefreshCw className="h-8 w-8" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!container) {
+    return (
+      <Card className="p-6">
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <p className="text-lg">Container not found</p>
+          <Button onClick={onBack} variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to list
+          </Button>
         </div>
       </Card>
     );
@@ -104,25 +146,25 @@ export function ContainerDetail({ containerId, onBack }: Props) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h2 className="text-2xl font-bold">{details.name}</h2>
-            <p className="text-sm text-muted-foreground">{details.id}</p>
+            <h2 className="text-2xl font-bold">{container.name}</h2>
+            <p className="text-sm text-muted-foreground">{container.id}</p>
           </div>
-          <Badge variant={getStatusBadgeVariant(details.status)}>
-            {details.status}
+          <Badge variant={getStatusBadgeVariant(container.status)}>
+            {container.status}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          {details.status === 'running' && (
+          {container.status === 'running' && (
             <Button variant="outline" size="sm">
               <Pause className="mr-2 h-4 w-4" /> Pause
             </Button>
           )}
-          {details.status === 'paused' && (
+          {container.status === 'paused' && (
             <Button variant="outline" size="sm">
               <Play className="mr-2 h-4 w-4" /> Resume
             </Button>
           )}
-          {details.status !== 'stopped' && (
+          {container.status !== 'stopped' && (
             <Button variant="outline" size="sm">
               <Power className="mr-2 h-4 w-4" /> Stop
             </Button>
@@ -168,16 +210,16 @@ export function ContainerDetail({ containerId, onBack }: Props) {
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>CPU Usage</span>
-                    <span>{details.resources.cpuUsage}%</span>
+                    <span>{container.resources.cpuUsage}%</span>
                   </div>
-                  <Progress value={details.resources.cpuUsage} />
+                  <Progress value={container.resources.cpuUsage} />
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Memory Usage</span>
-                    <span>{details.resources.memoryUsage}%</span>
+                    <span>{container.resources.memoryUsage}%</span>
                   </div>
-                  <Progress value={details.resources.memoryUsage} />
+                  <Progress value={container.resources.memoryUsage} />
                 </div>
               </div>
             </Card>
@@ -186,15 +228,15 @@ export function ContainerDetail({ containerId, onBack }: Props) {
               <dl className="space-y-2">
                 <div>
                   <dt className="text-sm text-muted-foreground">Image</dt>
-                  <dd>{details.image}</dd>
+                  <dd>{container.image}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">Created</dt>
-                  <dd>{details.created}</dd>
+                  <dd>{container.created}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">Ports</dt>
-                  <dd>{details.ports.join(', ') || 'None'}</dd>
+                  <dd>{container.ports.join(', ') || 'None'}</dd>
                 </div>
               </dl>
             </Card>
@@ -204,7 +246,13 @@ export function ContainerDetail({ containerId, onBack }: Props) {
         <TabsContent value="logs">
           <Card className="p-4">
             <ScrollArea className="h-[400px]">
-              <LogViewer containerId={containerId} />
+              {logsLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <RefreshCw className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap">{logs}</pre>
+              )}
             </ScrollArea>
           </Card>
         </TabsContent>
@@ -213,7 +261,7 @@ export function ContainerDetail({ containerId, onBack }: Props) {
           <Card className="p-4">
             <ScrollArea className="h-[400px]">
               <div className="space-y-2">
-                {Object.entries(details.environment).map(([key, value]) => (
+                {Object.entries(container.environment).map(([key, value]) => (
                   <div key={key} className="flex items-start gap-4">
                     <code className="text-sm font-mono bg-muted px-2 py-1 rounded">{key}</code>
                     <code className="text-sm font-mono text-muted-foreground">{value}</code>
@@ -229,11 +277,11 @@ export function ContainerDetail({ containerId, onBack }: Props) {
             <dl className="space-y-4">
               <div>
                 <dt className="text-sm text-muted-foreground">IP Address</dt>
-                <dd className="font-mono">{details.network.ipAddress}</dd>
+                <dd className="font-mono">{container.network.ipAddress}</dd>
               </div>
               <div>
                 <dt className="text-sm text-muted-foreground">Network Mode</dt>
-                <dd>{details.network.networkMode}</dd>
+                <dd>{container.network.networkMode}</dd>
               </div>
             </dl>
           </Card>

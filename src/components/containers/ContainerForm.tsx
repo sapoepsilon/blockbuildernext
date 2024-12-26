@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/table"
 import { Plus, Trash2 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ContainerService } from '@/lib/services/containerService';
+import { toast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   name: z.string().min(1, "Container name is required"),
@@ -53,7 +55,7 @@ export function ContainerForm({ onSuccess }: Props) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       cpu: 1,
-      memory: 1,
+      memory: 2,
       ports: [],
       environment: []
     }
@@ -61,22 +63,39 @@ export function ContainerForm({ onSuccess }: Props) {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      const response = await fetch('/api/containers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
+      const response = await ContainerService.createContainer({
+        name: data.name,
+        projectPath: '', // This should be set based on your project structure
+        env: data.environment.map(env => `${env.key}=${env.value}`),
+        cpuShares: Math.floor(data.cpu * 1024), // Convert CPU cores to shares
+        memoryLimit: Math.floor(data.memory * 1024 * 1024 * 1024), // Convert GB to bytes
+        labels: {
+          image: data.image,
+          ports: JSON.stringify(data.ports)
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create container');
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Failed to create container",
+          description: response.error.error,
+        });
+        return;
       }
 
+      toast({
+        title: "Success",
+        description: "Container created successfully",
+      });
+
       onSuccess?.();
-      form.reset();
     } catch (error) {
-      console.error('Error creating container:', error);
+      toast({
+        variant: "destructive",
+        title: "Failed to create container",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
     }
   }
 

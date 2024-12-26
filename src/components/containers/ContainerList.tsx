@@ -36,6 +36,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { ContainerService } from '@/lib/services/containerService';
+import { toast } from '@/hooks/use-toast';
 
 interface Container {
   id: string;
@@ -63,13 +65,58 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
   const fetchContainers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/containers');
-      const data = await response.json();
-      setContainers(data);
+      const response = await ContainerService.listContainers();
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Error fetching containers",
+          description: response.error.error,
+        });
+        return;
+      }
+      setContainers(response.data || []);
     } catch (error) {
-      console.error('Failed to fetch containers:', error);
+      toast({
+        variant: "destructive",
+        title: "Failed to fetch containers",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleContainerAction = async (containerId: string, action: 'start' | 'stop' | 'pause' | 'delete') => {
+    try {
+      let response;
+      switch (action) {
+        case 'delete':
+          response = await ContainerService.deleteContainer(containerId);
+          break;
+        // Add other actions when backend supports them
+      }
+      
+      if (response?.error) {
+        toast({
+          variant: "destructive",
+          title: `Failed to ${action} container`,
+          description: response.error.error,
+        });
+        return;
+      }
+      
+      toast({
+        title: "Success",
+        description: `Container ${action}ed successfully`,
+      });
+      
+      fetchContainers(); // Refresh the list
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: `Failed to ${action} container`,
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
     }
   };
 
@@ -202,7 +249,7 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
                           <Power className="mr-2 h-4 w-4" /> Stop
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleContainerAction(container.id, 'delete')}>
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
