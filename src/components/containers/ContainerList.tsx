@@ -40,12 +40,12 @@ import { ContainerService } from '@/lib/services/containerService';
 import { toast } from '@/hooks/use-toast';
 
 interface Container {
-  ID: string;
-  Name: string;
-  Status: string;
-  Image: string;
-  CreatedAt: string;
-  Ports?: string;
+  id: string;
+  name: string;
+  status: string;
+  image: string;
+  created_at: string;
+  ports: any;
 }
 
 interface ContainerListProps {
@@ -132,11 +132,17 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
   };
 
   const filteredContainers = containers.filter(container => {
-    const matchesSearch = (container?.Name?.toLowerCase()?.includes(searchText.toLowerCase()) || false) ||
-      (container?.Image?.toLowerCase()?.includes(searchText.toLowerCase()) || false);
-    const matchesStatus = statusFilter === 'all' || container?.Status?.toLowerCase().includes(statusFilter);
+    const matchesSearch = (container?.name?.toLowerCase()?.includes(searchText.toLowerCase()) || false) ||
+      (container?.image?.toLowerCase()?.includes(searchText.toLowerCase()) || false);
+    const matchesStatus = statusFilter === 'all' || container?.status?.toLowerCase().includes(statusFilter);
     return matchesSearch && matchesStatus;
   });
+
+  const handleViewDetails = (container: Container) => {
+    console.log('Container selected:', container);
+    console.log('Container ID:', container.id);
+    onSelectContainer(container.id);
+  };
 
   return (
     <Card className="p-6">
@@ -200,16 +206,16 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
           </TableHeader>
           <TableBody>
             {filteredContainers.map((container) => (
-              <TableRow key={container.ID}>
-                <TableCell className="font-medium">{container.Name}</TableCell>
+              <TableRow key={container.id} onClick={() => onSelectContainer(container.id)}>
+                <TableCell>{container.name}</TableCell>
                 <TableCell>
-                  <Badge variant={getStatusBadgeVariant(container.Status)}>
-                    {container.Status}
+                  <Badge variant={getStatusBadgeVariant(container.status)}>
+                    {container.status}
                   </Badge>
                 </TableCell>
-                <TableCell>{container.Image}</TableCell>
-                <TableCell>{container.CreatedAt}</TableCell>
-                <TableCell>{container.Ports}</TableCell>
+                <TableCell>{container.image}</TableCell>
+                <TableCell>{new Date(container.created_at).toLocaleString()}</TableCell>
+                <TableCell>{container.ports || 'N/A'}</TableCell>
                 <TableCell>
                   {/* Removed resource information as it's not present in the updated Container interface */}
                 </TableCell>
@@ -223,26 +229,26 @@ export function ContainerList({ onSelectContainer }: ContainerListProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => onSelectContainer(container.ID)}>
+                      <DropdownMenuItem onClick={() => handleViewDetails(container)}>
                         View Details
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      {container.Status.toLowerCase().includes('running') && (
+                      {container.status.toLowerCase().includes('running') && (
                         <DropdownMenuItem>
                           <Pause className="mr-2 h-4 w-4" /> Pause
                         </DropdownMenuItem>
                       )}
-                      {container.Status.toLowerCase().includes('paused') && (
+                      {container.status.toLowerCase().includes('paused') && (
                         <DropdownMenuItem>
                           <Play className="mr-2 h-4 w-4" /> Resume
                         </DropdownMenuItem>
                       )}
-                      {!container.Status.toLowerCase().includes('stopped') && (
+                      {!container.status.toLowerCase().includes('stopped') && (
                         <DropdownMenuItem>
                           <Power className="mr-2 h-4 w-4" /> Stop
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleContainerAction(container.ID, 'delete')}>
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleContainerAction(container.id, 'delete')}>
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>

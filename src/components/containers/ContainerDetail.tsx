@@ -43,8 +43,11 @@ export function ContainerDetail({ containerId, onBack }: Props) {
   const fetchContainer = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('Fetching container details for ID:', containerId);
       const response = await ContainerService.getContainer(containerId);
+      console.log('Container details response:', response);
       if (response.error) {
+        console.error('Error fetching container:', response.error);
         toast({
           variant: "destructive",
           title: "Error fetching container details",
@@ -149,22 +152,22 @@ export function ContainerDetail({ containerId, onBack }: Props) {
             <h2 className="text-2xl font-bold">{container.name}</h2>
             <p className="text-sm text-muted-foreground">{container.id}</p>
           </div>
-          <Badge variant={getStatusBadgeVariant(container.status)}>
-            {container.status}
+          <Badge variant={getStatusBadgeVariant(container.state)}>
+            {container.state}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          {container.status === 'running' && (
+          {container.state === 'running' && (
             <Button variant="outline" size="sm">
               <Pause className="mr-2 h-4 w-4" /> Pause
             </Button>
           )}
-          {container.status === 'paused' && (
+          {container.state === 'paused' && (
             <Button variant="outline" size="sm">
               <Play className="mr-2 h-4 w-4" /> Resume
             </Button>
           )}
-          {container.status !== 'stopped' && (
+          {container.state !== 'stopped' && (
             <Button variant="outline" size="sm">
               <Power className="mr-2 h-4 w-4" /> Stop
             </Button>
@@ -210,16 +213,16 @@ export function ContainerDetail({ containerId, onBack }: Props) {
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>CPU Usage</span>
-                    <span>{container.resources.cpuUsage}%</span>
+                    <span>{container.resources?.cpuUsage ?? 'N/A'}%</span>
                   </div>
-                  <Progress value={container.resources.cpuUsage} />
+                  <Progress value={Number(container.resources?.cpuUsage ?? 0)} />
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Memory Usage</span>
-                    <span>{container.resources.memoryUsage}%</span>
+                    <span>{container.resources?.memoryUsage ?? 'N/A'}%</span>
                   </div>
-                  <Progress value={container.resources.memoryUsage} />
+                  <Progress value={Number(container.resources?.memoryUsage ?? 0)} />
                 </div>
               </div>
             </Card>
@@ -232,11 +235,11 @@ export function ContainerDetail({ containerId, onBack }: Props) {
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">Created</dt>
-                  <dd>{container.created}</dd>
+                  <dd>{container.created_at}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">Ports</dt>
-                  <dd>{container.ports.join(', ') || 'None'}</dd>
+                  {/* <dd>{container.ports.join(', ') || 'None'}</dd> */}
                 </div>
               </dl>
             </Card>
@@ -261,12 +264,16 @@ export function ContainerDetail({ containerId, onBack }: Props) {
           <Card className="p-4">
             <ScrollArea className="h-[400px]">
               <div className="space-y-2">
-                {Object.entries(container.environment).map(([key, value]) => (
-                  <div key={key} className="flex items-start gap-4">
-                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded">{key}</code>
-                    <code className="text-sm font-mono text-muted-foreground">{value}</code>
-                  </div>
-                ))}
+                {container.environment && Object.keys(container.environment).length > 0 ? (
+                  Object.entries(container.environment).map(([key, value]) => (
+                    <div key={key} className="flex items-start gap-4">
+                      <code className="text-sm font-mono bg-muted px-2 py-1 rounded">{key}</code>
+                      <code className="text-sm font-mono text-muted-foreground">{value}</code>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No environment variables set</p>
+                )}
               </div>
             </ScrollArea>
           </Card>
@@ -277,11 +284,11 @@ export function ContainerDetail({ containerId, onBack }: Props) {
             <dl className="space-y-4">
               <div>
                 <dt className="text-sm text-muted-foreground">IP Address</dt>
-                <dd className="font-mono">{container.network.ipAddress}</dd>
+                {/* <dd className="font-mono">{container.}</dd> */}
               </div>
               <div>
                 <dt className="text-sm text-muted-foreground">Network Mode</dt>
-                <dd>{container.network.networkMode}</dd>
+                <dd>{container.networkMode || 'N/A'}</dd>
               </div>
             </dl>
           </Card>
