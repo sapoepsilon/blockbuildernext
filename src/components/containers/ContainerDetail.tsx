@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,7 +40,7 @@ export function ContainerDetail({ containerId, onBack }: Props) {
   const [logsLoading, setLogsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchContainer = async () => {
+  const fetchContainer = useCallback(async () => {
     try {
       setLoading(true);
       const response = await ContainerService.getContainer(containerId);
@@ -62,9 +62,9 @@ export function ContainerDetail({ containerId, onBack }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [containerId]);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLogsLoading(true);
       const response = await ContainerService.getContainerLogs(containerId);
@@ -86,7 +86,7 @@ export function ContainerDetail({ containerId, onBack }: Props) {
     } finally {
       setLogsLoading(false);
     }
-  };
+  }, [containerId]);
 
   useEffect(() => {
     fetchContainer();
@@ -98,7 +98,7 @@ export function ContainerDetail({ containerId, onBack }: Props) {
     }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(intervalId);
-  }, [containerId]);
+  }, [containerId, fetchContainer, fetchLogs]);
 
   if (loading) {
     return (

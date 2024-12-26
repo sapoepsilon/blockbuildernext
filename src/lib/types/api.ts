@@ -1,9 +1,12 @@
 export interface Container {
-  resources: any;
-  image: ReactNode;
-  ports: any;
-  environment(environment: any): unknown;
-  network: any;
+  resources: {
+    cpu?: number;
+    memory?: number;
+  };
+  image: string;
+  ports: Record<string, string>;
+  environment: Record<string, string>;
+  network: string;
   id: string;
   name: string;
   status: string;

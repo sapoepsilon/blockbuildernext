@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -35,7 +35,7 @@ export function LogViewer({ containerId }: Props) {
         wsRef.current.close();
       }
     };
-  }, [containerId]);
+  }, [containerId, connectWebSocket]);
 
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
@@ -43,7 +43,7 @@ export function LogViewer({ containerId }: Props) {
     }
   }, [logs, autoScroll]);
 
-  const connectWebSocket = () => {
+  const connectWebSocket = useCallback(() => {
     // TODO: Replace with actual WebSocket endpoint
     const ws = new WebSocket(`ws://localhost:3000/api/containers/${containerId}/logs`);
 
@@ -58,7 +58,7 @@ export function LogViewer({ containerId }: Props) {
     };
 
     wsRef.current = ws;
-  };
+  }, [containerId]);
 
   const handleClearLogs = () => {
     setLogs([]);
