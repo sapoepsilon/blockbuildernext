@@ -1,0 +1,8 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "ES2017",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false
+}
